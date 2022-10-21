@@ -8,10 +8,9 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 public class MovieAnalyzer {
-//    static String[][] data=new String[501][16];
     static ArrayList<String[]> data=new ArrayList<>();
-    public static void main(String[] args) {
-        MovieAnalyzer nb =new MovieAnalyzer("resources/imdb_top_500.csv");
+//    public static void main(String[] args) {
+//        MovieAnalyzer nb =new MovieAnalyzer("resources/imdb_top_500.csv");
 //        //task1
 //        System.out.println(Arrays.toString(nb.getMovieCountByYear().entrySet().toArray()));
 //        //task2
@@ -19,12 +18,12 @@ public class MovieAnalyzer {
 //        //task3
 ////        System.out.println(Arrays.toString(nb.getCoStarCount().entrySet().toArray()));
 //        //task4
-        System.out.println(nb.getTopMovies(20,"runtime"));
+//        System.out.println(nb.getTopMovies(20,"overview"));
 //        task5
 //        System.out.println(nb.getTopStars(20,"gross"));
 //        //task6
 //        System.out.println(nb.searchMovies("Drama",(float)5.5,20000));
-    }
+//    }
     public MovieAnalyzer(String dataset_path){
         try (BufferedReader bufferedReader = Files.newBufferedReader(Paths.get(dataset_path), StandardCharsets.UTF_8)) {
 //        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(dataset_path),"UTF-8"))) {
@@ -126,77 +125,59 @@ public class MovieAnalyzer {
     public List<String> getTopMovies(int top_k, String by){
         List<String> ansList=new ArrayList<>();
         if(by=="runtime"){
-            Map<String,Integer> movieRuntime = new HashMap<>();
-            Iterator<String[]> ite=data.iterator();
-            while (ite.hasNext()){
-                String[] row=ite.next();
-                int time=0,pos=0;
-                while (row[3].charAt(pos)!=' ') {
-                    if(row[3].charAt(pos)=='"'){
-                        ++pos;
-                        continue;
-                    }
-                    time = time * 10 + row[3].charAt(pos) - '0';
-                    ++pos;
-                }
-                movieRuntime.put(row[0],time);
-            }
-            Map<String,Integer> ansMap=new LinkedHashMap<>();
-            movieRuntime.entrySet()
-                    .stream()
-                    .sorted(new Comparator<Map.Entry<String, Integer>>() {
-                        @Override
-                        public int compare(Map.Entry<String, Integer> o1, Map.Entry<String, Integer> o2) {
-                            if(o1.getValue().compareTo(o2.getValue())!=0){
-                                return o2.getValue().compareTo(o1.getValue());
+            data.stream()
+                    .sorted((o1, o2) -> {
+                        int time1=0,time2=0,pos=0;
+                        while (o1[3].charAt(pos)!=' ') {
+                            if(o1[3].charAt(pos)=='"'){
+                                ++pos;
+                                continue;
                             }
-                            else {
-                                return o1.getKey().compareTo(o2.getKey());
-                            }
+                            time1 = time1 * 10 + o1[3].charAt(pos) - '0';
+                            ++pos;
                         }
+                        pos=0;
+                        while (o2[3].charAt(pos)!=' ') {
+                            if(o2[3].charAt(pos)=='"'){
+                                ++pos;
+                                continue;
+                            }
+                            time2 = time2 * 10 + o2[3].charAt(pos) - '0';
+                            ++pos;
+                        }
+//                            return time1<time2 ? 1 : time1==time2 ? 0 : -1;
+                        if(time1==time2)
+                            return o1[0].compareTo(o2[0]);
+                        else return time1<time2 ? 1 : -1;
                     })
-//                    .collect(Collectors.toList())
-                    .forEach(ele -> ansMap.put(ele.getKey(), ele.getValue()));
-            Iterator<String> movieIte = ansMap.keySet().iterator();
-            int k=0;
-            while (movieIte.hasNext() && k<top_k){
-                ansList.add(movieIte.next());
-                ++k;
-            }
+                    .limit(top_k)
+                    .forEach(new Consumer<String[]>() {
+                        @Override
+                        public void accept(String[] row) {
+                            ansList.add(row[0]);
+                        }
+                    });
         }
         else if(by=="overview"){
-            Map<String,Integer> movieOverview = new HashMap<>();
-            Iterator<String[]> ite=data.iterator();
-            while (ite.hasNext()){
-                String[] row=ite.next();
-                movieOverview.put(row[0],row[6].length());
-            }
-            Map<String,Integer> ansMap=new LinkedHashMap<>();
-//            movieOverview.entrySet()
-//                    .stream()
-//                    .sorted((p1, p2) -> p2.getValue().compareTo(p1.getValue()))
-//                    .collect(Collectors.toList()).forEach(ele -> ansMap.put(ele.getKey(), ele.getValue()));
-            movieOverview.entrySet()
-                    .stream()
-                    .sorted(new Comparator<Map.Entry<String, Integer>>() {
+            data.stream()
+                    .sorted(new Comparator<String[]>() {
                         @Override
-                        public int compare(Map.Entry<String, Integer> o1, Map.Entry<String, Integer> o2) {
-                            if(o1.getValue().compareTo(o2.getValue())!=0){
-                                return o2.getValue().compareTo(o1.getValue());
-                            }
-                            else {
-                                return o1.getKey().compareTo(o2.getKey()); //Maybe should be reverse lexicographical order
-                            }
+                        public int compare(String[] o1, String[] o2) {
+                            int len1=o1[6].length(),len2=o2[6].length();
+                            if(o1[6].charAt(0)=='"') len1-=2;
+                            if(o2[6].charAt(0)=='"') len2-=2;
+                            if(len1==len2)
+                                return o1[0].compareTo(o2[0]);
+                            else return len2-len1;
                         }
                     })
-//                    .collect(Collectors.toList())
-                    .forEach(ele -> ansMap.put(ele.getKey(), ele.getValue()));
-            Iterator<String> movieIte = ansMap.keySet().iterator();
-            int k=0;
-            while (movieIte.hasNext() && k<top_k){
-                ansList.add(movieIte.next());
-                ++k;
-            }
+                    .limit(top_k)
+                    .forEach(new Consumer<String[]>() {
+                        @Override
+                        public void accept(String[] row) {
+                            ansList.add(row[0]);
+                        }
+                    });
         }
         else {
             System.out.println("Wrong");
@@ -207,10 +188,10 @@ public class MovieAnalyzer {
         List<String> ansList=new ArrayList<>();
         if(by=="rating"){
             class ratingInfo{
-                double sum;
+                float sum;
                 int num;
-                double avgRating;
-                ratingInfo(double rating){
+                float avgRating;
+                ratingInfo(float rating){
                     this.sum=rating;
                     this.num=1;
                 }
@@ -226,7 +207,7 @@ public class MovieAnalyzer {
             Iterator<String[]> ite=data.iterator();
             while (ite.hasNext()){
                 String[] row=ite.next();
-                double rating=Double.parseDouble(row[5]);
+                float rating=Float.parseFloat(row[5]);
                 for(int i=9;i<13;++i){
                     String star=row[i];
                     if(starAvgRating.containsKey(star))
@@ -238,30 +219,23 @@ public class MovieAnalyzer {
             Iterator<Map.Entry<String,ratingInfo>> iteStar=starAvgRating.entrySet().iterator();
             while (iteStar.hasNext())
                 iteStar.next().getValue().calculate();
-            Map<String,ratingInfo> ansMap=new LinkedHashMap<>();
             starAvgRating.entrySet()
                     .stream()
                     .sorted(new Comparator<Map.Entry<String, ratingInfo>>() {
                         @Override
-                        public int compare(Map.Entry<String, ratingInfo> o1, Map.Entry<String, ratingInfo> o2) { //todo: the precision is too high(I'm using double)
-                            return o1.getValue().avgRating>o2.getValue().avgRating ? 1 :
-                                    (o1.getValue().avgRating==o2.getValue().avgRating)? 0 : -1;
+                        public int compare(Map.Entry<String, ratingInfo> o1, Map.Entry<String, ratingInfo> o2) {
+                            return o1.getValue().avgRating>o2.getValue().avgRating ? -1 :
+                                    (o1.getValue().avgRating==o2.getValue().avgRating)? 0 : 1;
                         }
                     })
-//                    .collect(Collectors.toList())
-                    .forEach(ele -> ansMap.put(ele.getKey(), ele.getValue()));
-            Iterator<String> starIte = ansMap.keySet().iterator();
-            int k=0;
-            while (starIte.hasNext() && k<top_k){
-                ansList.add(starIte.next());
-                ++k;
-            }
+                    .limit(top_k)
+                    .forEach(ele -> ansList.add(ele.getKey()) );
         }
         else if(by=="gross"){
             class grossInfo{
                 long sum;
                 int num;
-                double avgGross;
+                float avgGross;
                 grossInfo(long gross){
                     this.sum=gross;
                     num=1;
@@ -271,7 +245,7 @@ public class MovieAnalyzer {
                     ++num;
                 }
                 void calculate(){
-                    this.avgGross=sum/num;
+                    this.avgGross=(float) sum/num;
                 }
             }
             Map<String,grossInfo> starAvgGross = new HashMap<>();
@@ -307,18 +281,12 @@ public class MovieAnalyzer {
                     .sorted(new Comparator<Map.Entry<String, grossInfo>>() {
                         @Override
                         public int compare(Map.Entry<String, grossInfo> o1, Map.Entry<String, grossInfo> o2) {//todo: the precision is too high
-                            return o1.getValue().avgGross>o2.getValue().avgGross ? 1 :
-                                    (o1.getValue().avgGross==o2.getValue().avgGross) ? 0 : -1;
+                            return o1.getValue().avgGross>o2.getValue().avgGross ? -1 :
+                                    (o1.getValue().avgGross==o2.getValue().avgGross) ? 0 : 1;
                         }
                     })
-//                    .collect(Collectors.toList())
-                    .forEach(ele -> ansMap.put(ele.getKey(), ele.getValue()));
-            Iterator<String> starIte = ansMap.keySet().iterator();
-            int k=0;
-            while (starIte.hasNext() && k<top_k){
-                ansList.add(starIte.next());
-                ++k;
-            }
+                    .limit(top_k)
+                    .forEach(ele -> ansList.add(ele.getKey()));
         }
         else {
             System.out.println("Wrong");
@@ -337,24 +305,16 @@ public class MovieAnalyzer {
                     if(row[4].charAt(0)=='"'){
                         begin=1;
                         for(pos=begin;pos<row[4].length();++pos){
-                            if(row[4].charAt(pos)==',')
+                            if(row[4].charAt(pos)==',' || row[4].charAt(pos)=='"')
                             {
                                 String aGenre=row[4].substring(begin,pos);
-                                if(aGenre==genre){
-//                                        movieList.add(new info(row[0],movieRating,movieRuntime));
-                                    if(movieRating>=min_rating && movieRuntime<=max_runtime)
-                                        return true;
-                                }
-                            }
-                            else if(row[4].charAt(pos)=='"'){
-                                String aGenre=row[4].substring(begin,pos);
                                 if(aGenre==genre && movieRating>=min_rating && movieRuntime<=max_runtime)
-                                    return true;
+                                        return true;
                             }
                         }
                     }
                     else
-                        if(row[4]==genre &&movieRating>=min_rating && movieRuntime<=max_runtime)
+                        if(row[4]==genre && movieRating>=min_rating && movieRuntime<=max_runtime)
                             return true;
                     return false;
                 })
