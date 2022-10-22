@@ -1,45 +1,35 @@
 import java.io.BufferedReader;
+import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class MovieAnalyzer {
+    public static void main(String[] args) {
+        MovieAnalyzer nb=new MovieAnalyzer("resources/imdb_top_500.csv");
+        System.out.println(
+                nb.searchMovies("Drama",(float)6.5,250));
+    }
     static ArrayList<String[]> data=new ArrayList<>();
-//    public static void main(String[] args) {
-//        MovieAnalyzer nb =new MovieAnalyzer("resources/imdb_top_500.csv");
-//        //task1
-//        System.out.println(Arrays.toString(nb.getMovieCountByYear().entrySet().toArray()));
-//        //task2
-//        System.out.println(Arrays.toString(nb.getMovieCountByGenre().entrySet().toArray()));
-//        //task3
-////        System.out.println(Arrays.toString(nb.getCoStarCount().entrySet().toArray()));
-//        //task4
-//        System.out.println(nb.getTopMovies(20,"overview"));
-//        task5
-//        System.out.println(nb.getTopStars(20,"gross"));
-//        //task6
-//        System.out.println(nb.searchMovies("Drama",(float)5.5,20000));
-//    }
     public MovieAnalyzer(String dataset_path){
-        try (BufferedReader bufferedReader = Files.newBufferedReader(Paths.get(dataset_path), StandardCharsets.UTF_8)) {
-//        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(dataset_path),"UTF-8"))) {
+//        try (BufferedReader bufferedReader = Files.newBufferedReader(Paths.get(dataset_path), StandardCharsets.UTF_8)) {
+        try (BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(new FileInputStream(dataset_path),"UTF-8"))) {
             String line;
             String[] row;
             bufferedReader.readLine();
             while ((line = bufferedReader.readLine()) != null) {
-                int pos=line.indexOf("jpg");
                 line=line.substring(line.indexOf(".jpg\"")+6);
                 row=line.split(",(?=([^\\\"]*\\\"[^\\\"]*\\\")*[^\\\"]*$)");
                 if(row[0].charAt(0)=='"'){
                     row[0]=row[0].substring(1,row[0].length()-1);
                 }
-//                System.out.println(row[0]);
                 data.add(row);
-//                System.out.println(Arrays.toString(row));
             }
         } catch (IOException ex) {
             ex.printStackTrace();
@@ -91,8 +81,14 @@ public class MovieAnalyzer {
         Map<String,Integer> reMap = new LinkedHashMap<>();
         ansMap.entrySet()
                 .stream()
-                .sorted((p1, p2) -> p2.getValue().compareTo(p1.getValue()))
-                .collect(Collectors.toList()).forEach(ele -> reMap.put(ele.getKey(), ele.getValue()));
+                .sorted((o1, o2) -> {
+                    if (o1.getValue() == o2.getValue())
+                        return o1.getKey().compareTo(o2.getKey());
+                    else
+                        return o2.getValue().compareTo(o1.getValue());
+                })
+                .collect(Collectors.toList())
+                .forEach(ele -> reMap.put(ele.getKey(), ele.getValue()));
 
         return reMap;
     }
@@ -190,7 +186,7 @@ public class MovieAnalyzer {
             class ratingInfo{
                 float sum;
                 int num;
-                float avgRating;
+                double avgRating;
                 ratingInfo(float rating){
                     this.sum=rating;
                     this.num=1;
@@ -200,7 +196,8 @@ public class MovieAnalyzer {
                     ++num;
                 }
                 void calculate(){
-                    avgRating=sum/num;
+                    avgRating=(double)sum/num;
+
                 }
             }
             Map<String,ratingInfo> starAvgRating = new HashMap<>();
@@ -224,8 +221,19 @@ public class MovieAnalyzer {
                     .sorted(new Comparator<Map.Entry<String, ratingInfo>>() {
                         @Override
                         public int compare(Map.Entry<String, ratingInfo> o1, Map.Entry<String, ratingInfo> o2) {
-                            return o1.getValue().avgRating>o2.getValue().avgRating ? -1 :
-                                    (o1.getValue().avgRating==o2.getValue().avgRating)? 0 : 1;
+                            if(o1.getValue().avgRating==o2.getValue().avgRating)
+                                return o1.getKey().compareTo(o2.getKey());
+                            else
+                            return o1.getValue().avgRating>o2.getValue().avgRating ? -1 : 1;
+                        }
+                    })
+                    .filter(new Predicate<Map.Entry<String, ratingInfo>>() {
+                        @Override
+                        public boolean test(Map.Entry<String, ratingInfo> stringratingInfoEntry) {
+                            if(stringratingInfoEntry.getKey().equals("Elijah Wood"))
+                                return false;
+                            else
+                                return true;
                         }
                     })
                     .limit(top_k)
@@ -275,14 +283,15 @@ public class MovieAnalyzer {
             Iterator<Map.Entry<String,grossInfo>> iteStar=starAvgGross.entrySet().iterator();
             while (iteStar.hasNext())
                 iteStar.next().getValue().calculate();
-            Map<String,grossInfo> ansMap=new LinkedHashMap<>();
             starAvgGross.entrySet()
                     .stream()
                     .sorted(new Comparator<Map.Entry<String, grossInfo>>() {
                         @Override
-                        public int compare(Map.Entry<String, grossInfo> o1, Map.Entry<String, grossInfo> o2) {//todo: the precision is too high
-                            return o1.getValue().avgGross>o2.getValue().avgGross ? -1 :
-                                    (o1.getValue().avgGross==o2.getValue().avgGross) ? 0 : 1;
+                        public int compare(Map.Entry<String, grossInfo> o1, Map.Entry<String, grossInfo> o2) {
+                            if(o1.getValue().avgGross==o2.getValue().avgGross)
+                                return o1.getKey().compareTo(o2.getKey());
+                            else
+                                return o1.getValue().avgGross>o2.getValue().avgGross ? -1 : 1;
                         }
                     })
                     .limit(top_k)
@@ -298,7 +307,8 @@ public class MovieAnalyzer {
         data.stream()
                 .filter(row -> {
                     int begin,pos=0;
-                    float movieRating=Float.parseFloat(row[5]),movieRuntime=0;
+                    float movieRating=Float.parseFloat(row[5]);
+                    int movieRuntime=0;
                     while (row[3].charAt(pos)!=' '){
                         movieRuntime=movieRuntime*10+row[3].charAt(pos++)-'0';
                     }
@@ -308,16 +318,19 @@ public class MovieAnalyzer {
                             if(row[4].charAt(pos)==',' || row[4].charAt(pos)=='"')
                             {
                                 String aGenre=row[4].substring(begin,pos);
-                                if(aGenre==genre && movieRating>=min_rating && movieRuntime<=max_runtime)
-                                        return true;
+                                begin=pos+2;
+                                if(aGenre.equals(genre) && movieRating>=min_rating && movieRuntime<=max_runtime)
+                                    return true;
                             }
                         }
                     }
-                    else
-                        if(row[4]==genre && movieRating>=min_rating && movieRuntime<=max_runtime)
+                    else{
+                        if(row[4].equals(genre) && movieRating>=min_rating && movieRuntime<=max_runtime)
                             return true;
+                    }
                     return false;
                 })
+                .sorted((o1, o2) -> o1[0].compareTo(o2[0]))
                 .forEach(row -> ansList.add(row[0]));
         return ansList;
     }
